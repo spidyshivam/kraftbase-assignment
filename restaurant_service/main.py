@@ -8,8 +8,8 @@ from typing import List, Optional
 
 app = FastAPI()
 
-#delivery_agent_service_client = httpx.AsyncClient(base_url="http://delivery_agent_service:8002", timeout=5.0)
-delivery_agent_service_client = httpx.AsyncClient(base_url="http://localhost:8002", timeout=5.0)
+delivery_agent_service_client = httpx.AsyncClient(base_url="http://delivery_agent_service:8002", timeout=5.0)
+#delivery_agent_service_client = httpx.AsyncClient(base_url="http://localhost:8002", timeout=5.0)
 
 
 class Restaurant(Model):
@@ -214,8 +214,8 @@ async def get_restaurant(restaurant_id: int):
 # --- TORTISE ORM REGISTRATION ---
 register_tortoise(
     app,
-    db_url="sqlite3://restaurant.db",
-    #db_url="postgres://postgres:mysecretpassword@localhost:5432/restaurant_db",
+    #db_url="sqlite://restaurant.db",
+    db_url="postgres://postgres:mysecretpassword@localhost:5432/postgres",
     modules={"models": ["main"]},
     generate_schemas=True,
     add_exception_handlers=True,

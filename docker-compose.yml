@@ -1,19 +1,28 @@
+# docker-compose.yml
 version: '3.8'
 
 services:
+  # PostgreSQL Database Service
   postgres_db:
     image: postgres:16-alpine
     container_name: food_delivery_postgres
     restart: always
     environment:
-      POSTGRES_DB: postgres
+      POSTGRES_DB: postgres # This is the default database that gets created by the image
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: mysecretpassword
     ports:
       - "5432:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
+      - ./init_db:/docker-entrypoint-initdb.d # Mounts our custom init scripts
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
+  # Restaurant Service
   restaurant_service:
     build:
       context: ./restaurant_service
@@ -27,8 +36,14 @@ services:
       DELIVERY_AGENT_SERVICE_URL: http://delivery_agent_service:8002
     depends_on:
       postgres_db:
-        condition: service_started # Simpler condition: just wait for container to start
+        condition: service_healthy # Wait for postgres to be healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/restaurants/available"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
+  # Delivery Agent Service
   delivery_agent_service:
     build:
       context: ./delivery_agent_service
@@ -42,8 +57,14 @@ services:
       RESTAURANT_SERVICE_URL: http://restaurant_service:8001
     depends_on:
       postgres_db:
-        condition: service_started # Simpler condition
+        condition: service_healthy # Wait for postgres to be healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/agents"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
+  # User Service (GraphQL Gateway)
   user_service:
     build:
       context: ./user_service
@@ -57,9 +78,16 @@ services:
       DELIVERY_AGENT_SERVICE_URL: http://delivery_agent_service:8002
     depends_on:
       restaurant_service:
-        condition: service_started # Simpler condition
+        condition: service_healthy # Wait for restaurant service to be healthy
       delivery_agent_service:
-        condition: service_started # Simpler condition
+        condition: service_healthy # Wait for delivery agent service to be healthy
+      postgres_db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/graphql"] # Check if GraphQL Playground is accessible
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
-  pg_data:
+  pg_data: # Define the named volume for PostgreSQL data persistence

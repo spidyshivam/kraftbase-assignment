@@ -3,14 +3,15 @@ import strawberry
 from strawberry.fastapi import GraphQLRouter
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from typing import List 
 import httpx
 
 app = FastAPI()
 
-#restaurant_service_client = httpx.AsyncClient(base_url="http://restaurant_service:8001", timeout=10.0)
-#delivery_agent_service_client = httpx.AsyncClient(base_url="http://delivery_agent_service:8002", timeout=10.0)
-restaurant_service_client = httpx.AsyncClient(base_url="http://localhost:8001", timeout=10.0)
-delivery_agent_service_client = httpx.AsyncClient(base_url="http://localhost:8002", timeout=10.0)
+restaurant_service_client = httpx.AsyncClient(base_url="http://restaurant_service:8001", timeout=10.0)
+delivery_agent_service_client = httpx.AsyncClient(base_url="http://delivery_agent_service:8002", timeout=10.0)
+#restaurant_service_client = httpx.AsyncClient(base_url="http://localhost:8001", timeout=10.0)
+#delivery_agent_service_client = httpx.AsyncClient(base_url="http://localhost:8002", timeout=10.0)
 
 
 
@@ -34,12 +35,6 @@ class Order:
     status: str
     items: List[str] 
     assigned_agent_id: Optional[int] = None 
-
-@strawberry.input
-class OrderInput:
-    user_id: int
-    restaurant_id: int
-    items: List[str] 
 
     @strawberry.field
     async def restaurant(self, info) -> Optional[Restaurant]:
@@ -76,6 +71,13 @@ class OrderInput:
         except Exception as e:
             print(f"Error fetching agent for order {self.id}: {e}")
             raise
+
+@strawberry.input
+class OrderInput:
+    user_id: int
+    restaurant_id: int
+    items: List[str]
+
 
 
 

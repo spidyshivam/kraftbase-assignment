@@ -8,8 +8,8 @@ import httpx
 
 app = FastAPI()
 
-#restaurant_service_client = httpx.AsyncClient(base_url="http://restaurant_service:8001", timeout=5.0)
-restaurant_service_client = httpx.AsyncClient(base_url="http://localhost:8001", timeout=5.0)
+restaurant_service_client = httpx.AsyncClient(base_url="http://restaurant_service:8001", timeout=5.0)
+#restaurant_service_client = httpx.AsyncClient(base_url="http://localhost:8001", timeout=5.0)
 
 class DeliveryAgent(Model):
     id = fields.IntField(pk=True)
@@ -124,8 +124,8 @@ async def get_delivery_agent(agent_id: int):
 
 register_tortoise(
     app,
-    db_url="sqlite3://delivery.db",
-    #db_url="postgres://postgres:mysecretpassword@localhost:5432/db.sqlite3/delivery_db",
+    #db_url="sqlite://delivery.db",
+    db_url="postgres://postgres:mysecretpassword@localhost:5432/postgres",
     modules={"models": ["main"]},
     generate_schemas=True,
     add_exception_handlers=True,
