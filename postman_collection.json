@@ -1,0 +1,421 @@
+{
+	"info": {
+		"_postman_id": "887",
+		"name": "Food Delivery Microservices",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "YOUR_EXPORTER_ID_HERE"
+	},
+	"item": [
+		{
+			"name": "Environment Variables",
+			"item": [
+				{
+					"name": "Base URLs",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "This is a placeholder for environment variables. Set them in a Postman Environment.",
+							"host": [
+								"This is a placeholder for environment variables. Set them in a Postman Environment."
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "Set these variables in a Postman Environment:\n\n- `user_service_url`: `http://localhost:8000`\n- `restaurant_service_url`: `http://localhost:8001`\n- `delivery_agent_service_url`: `http://localhost:8002`\n\nAlso, remember to update dynamic IDs like `{{restaurant_id}}`, `{{order_id}}`, `{{agent_id}}` with actual values from responses."
+		},
+		{
+			"name": "Restaurant Service",
+			"item": [
+				{
+					"name": "1. Get Available Restaurants",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{restaurant_service_url}}/restaurants/available",
+							"host": [
+								"{{restaurant_service_url}}"
+							],
+							"path": [
+								"restaurants",
+								"available"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "2. Add Restaurant",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"The Gourmet Grill\",\n    \"online\": true\n}"
+						},
+						"url": {
+							"raw": "{{restaurant_service_url}}/restaurants",
+							"host": [
+								"{{restaurant_service_url}}"
+							],
+							"path": [
+								"restaurants"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "3. Update Restaurant Details",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"online\": false\n}"
+						},
+						"url": {
+							"raw": "{{restaurant_service_url}}/restaurants/{{restaurant_id}}",
+							"host": [
+								"{{restaurant_service_url}}"
+							],
+							"path": [
+								"restaurants",
+								"{{restaurant_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "4. Add Menu Item",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Spicy Chicken Wings\",\n    \"description\": \"6 pieces of crispy wings with hot sauce\",\n    \"price\": 8.99,\n    \"available\": true\n}"
+						},
+						"url": {
+							"raw": "{{restaurant_service_url}}/restaurants/{{restaurant_id}}/menu",
+							"host": [
+								"{{restaurant_service_url}}"
+							],
+							"path": [
+								"restaurants",
+								"{{restaurant_id}}",
+								"menu"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "5. Update Menu Item",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"price\": 9.50,\n    \"available\": false\n}"
+						},
+						"url": {
+							"raw": "{{restaurant_service_url}}/restaurants/{{restaurant_id}}/menu/{{menu_item_id}}",
+							"host": [
+								"{{restaurant_service_url}}"
+							],
+							"path": [
+								"restaurants",
+								"{{restaurant_id}}",
+								"menu",
+								"{{menu_item_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "6. Get Restaurant Menu",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{restaurant_service_url}}/restaurants/{{restaurant_id}}/menu",
+							"host": [
+								"{{restaurant_service_url}}"
+							],
+							"path": [
+								"restaurants",
+								"{{restaurant_id}}",
+								"menu"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "7. Get Order Details (Internal)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{restaurant_service_url}}/orders/{{order_id}}",
+							"host": [
+								"{{restaurant_service_url}}"
+							],
+							"path": [
+								"orders",
+								"{{order_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "8. Update Order Status (Accept/Reject/Process)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"status\": \"accepted\" \n    // or \"rejected\", \"preparing\", \"ready_for_pickup\", \"delivered\"\n}"
+						},
+						"url": {
+							"raw": "{{restaurant_service_url}}/orders/{{order_id}}/status",
+							"host": [
+								"{{restaurant_service_url}}"
+							],
+							"path": [
+								"orders",
+								"{{order_id}}",
+								"status"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Delivery Agent Service",
+			"item": [
+				{
+					"name": "1. Add Delivery Agent",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Agent Bravo\",\n    \"available\": true\n}"
+						},
+						"url": {
+							"raw": "{{delivery_agent_service_url}}/agents",
+							"host": [
+								"{{delivery_agent_service_url}}"
+							],
+							"path": [
+								"agents"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "2. Get Delivery Agent Details",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{delivery_agent_service_url}}/agents/{{agent_id}}",
+							"host": [
+								"{{delivery_agent_service_url}}"
+							],
+							"path": [
+								"agents",
+								"{{agent_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "3. Assign Delivery (Internal)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"order_id\": {{order_id}}\n}"
+						},
+						"url": {
+							"raw": "{{delivery_agent_service_url}}/assign",
+							"host": [
+								"{{delivery_agent_service_url}}"
+							],
+							"path": [
+								"assign"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "4. Complete Delivery",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"order_id\": {{order_id}},\n    \"agent_id\": {{agent_id}}\n}"
+						},
+						"url": {
+							"raw": "{{delivery_agent_service_url}}/complete-delivery",
+							"host": [
+								"{{delivery_agent_service_url}}"
+							],
+							"path": [
+								"complete-delivery"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "User Service (GraphQL Gateway)",
+			"item": [
+				{
+					"name": "1. GraphQL: Get Available Restaurants",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "graphql",
+							"graphql": {
+								"query": "query {\n  getAvailableRestaurants {\n    id\n    name\n    online\n  }\n}",
+								"variables": ""
+							}
+						},
+						"url": {
+							"raw": "{{user_service_url}}/graphql",
+							"host": [
+								"{{user_service_url}}"
+							],
+							"path": [
+								"graphql"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "3. GraphQL: Place Order",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "graphql",
+							"graphql": {
+								"query": "mutation PlaceNewOrder {\n  placeOrder(orderData: {\n    userId: 102,\n    restaurantId: {{restaurant_id}}, // Use an existing restaurant ID\n    items: [\"Pizza\", \"Salad\"]\n  }) {\n    id\n    userId\n    restaurantId\n    status\n    items\n    }\n}",
+								"variables": ""
+							}
+						},
+						"url": {
+							"raw": "{{user_service_url}}/graphql",
+							"host": [
+								"{{user_service_url}}"
+							],
+							"path": [
+								"graphql"
+							]
+						}
+					},
+					"response": []
+				},
+								{
+					"name": "5. GraphQL: Rate Order",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "graphql",
+							"graphql": {
+								"query": "mutation SubmitOrderRating {\n  rateOrder(orderId: {{order_id}}, restaurantRating: 5, agentRating: 4)\n}",
+								"variables": ""
+							}
+						},
+						"url": {
+							"raw": "{{user_service_url}}/graphql",
+							"host": [
+								"{{user_service_url}}"
+							],
+							"path": [
+								"graphql"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}

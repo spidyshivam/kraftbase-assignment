@@ -1,7 +1,7 @@
 from typing import List, Optional
 import strawberry
 from strawberry.fastapi import GraphQLRouter
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, status
 from pydantic import BaseModel
 from typing import List 
 import httpx
@@ -149,6 +149,12 @@ class Mutation:
             raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
 
 
+@app.get("/health", status_code=status.HTTP_200_OK)
+async def health_check():
+    """
+    Health check endpoint to verify service status.
+    """
+    return {"status": "ok", "message": "Service is healthy"}
 
 
 schema = strawberry.Schema(query=Query, mutation=Mutation)

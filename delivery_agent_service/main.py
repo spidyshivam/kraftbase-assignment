@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, status
 from tortoise import fields
 from tortoise.models import Model
 from tortoise.contrib.fastapi import register_tortoise
@@ -26,6 +26,7 @@ class DeliveryAgentIn(BaseModel):
 class DeliveryComplete(BaseModel):
     order_id: int
     agent_id: int 
+
 
 @app.post("/assign")
 async def assign_delivery(assignment: DeliveryAssignment):
@@ -122,10 +123,17 @@ async def get_delivery_agent(agent_id: int):
         raise HTTPException(status_code=404, detail="Delivery agent not found.")
     return agent 
 
+@app.get("/health", status_code=status.HTTP_200_OK)
+async def health_check():
+    """
+    Health check endpoint to verify service status.
+    """
+    return {"status": "ok", "message": "Service is healthy"}
+
 register_tortoise(
     app,
     #db_url="sqlite://delivery.db",
-    db_url="postgres://postgres:mysecretpassword@localhost:5432/postgres",
+    db_url="postgres://postgres:mysecretpassword@food_delivery_postgres:5432/postgres",
     modules={"models": ["main"]},
     generate_schemas=True,
     add_exception_handlers=True,
