@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  postgres_db:
+    image: postgres:16-alpine
+    container_name: food_delivery_postgres
+    restart: always
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: mysecretpassword
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+
+  restaurant_service:
+    build:
+      context: ./restaurant_service
+      dockerfile: Dockerfile
+    container_name: restaurant_service
+    restart: on-failure
+    ports:
+      - "8001:8001"
+    environment:
+      DATABASE_URL: postgres://postgres:mysecretpassword@postgres_db:5432/restaurant_db
+      DELIVERY_AGENT_SERVICE_URL: http://delivery_agent_service:8002
+    depends_on:
+      postgres_db:
+        condition: service_started # Simpler condition: just wait for container to start
+
+  delivery_agent_service:
+    build:
+      context: ./delivery_agent_service
+      dockerfile: Dockerfile
+    container_name: delivery_agent_service
+    restart: on-failure
+    ports:
+      - "8002:8002"
+    environment:
+      DATABASE_URL: postgres://postgres:mysecretpassword@postgres_db:5432/delivery_db
+      RESTAURANT_SERVICE_URL: http://restaurant_service:8001
+    depends_on:
+      postgres_db:
+        condition: service_started # Simpler condition
+
+  user_service:
+    build:
+      context: ./user_service
+      dockerfile: Dockerfile
+    container_name: user_service
+    restart: on-failure
+    ports:
+      - "8000:8000"
+    environment:
+      RESTAURANT_SERVICE_URL: http://restaurant_service:8001
+      DELIVERY_AGENT_SERVICE_URL: http://delivery_agent_service:8002
+    depends_on:
+      restaurant_service:
+        condition: service_started # Simpler condition
+      delivery_agent_service:
+        condition: service_started # Simpler condition
+
+volumes:
+  pg_data:
