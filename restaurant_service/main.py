@@ -1,3 +1,4 @@
+# -------- restaurant.py --------
 from fastapi import FastAPI, HTTPException, status
 from tortoise import fields
 from tortoise.models import Model
@@ -9,8 +10,8 @@ from typing import List, Optional
 app = FastAPI()
 
 delivery_agent_service_client = httpx.AsyncClient(base_url="http://delivery_agent_service:8002", timeout=5.0)
-#delivery_agent_service_client = httpx.AsyncClient(base_url="http://localhost:8002", timeout=5.0)
 
+# --- TORTISE ORM MODELS ---
 
 class Restaurant(Model):
     id = fields.IntField(pk=True)
@@ -28,63 +29,96 @@ class MenuItem(Model):
 class Order(Model):
     id = fields.IntField(pk=True)
     restaurant = fields.ForeignKeyField('models.Restaurant', related_name='orders')
-    user_id = fields.IntField() 
-    status = fields.CharField(max_length=50) 
+    user_id = fields.IntField()
+    status = fields.CharField(max_length=50)
     items = fields.JSONField()
-    assigned_agent_id = fields.IntField(null=True) 
+    assigned_agent_id = fields.IntField(null=True)
+    restaurant_rating = fields.IntField(null=True)
+    agent_rating = fields.IntField(null=True)
 
 # --- PYDANTIC MODELS ---
 
 class RestaurantIn(BaseModel):
     name: str
-    online: bool = True 
+    online: bool = True
+    class Config: 
+        from_attributes = True
 
 class RestaurantUpdate(BaseModel):
     name: Optional[str] = None
     online: Optional[bool] = None
+    class Config:
+        from_attributes = True
 
 class MenuItemIn(BaseModel):
     name: str
     description: Optional[str] = None
     price: float
     available: bool = True
+    class Config: 
+        from_attributes = True
 
 class MenuItemUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     price: Optional[float] = None
     available: Optional[bool] = None
+    class Config:
+        from_attributes = True
 
 class OrderIn(BaseModel):
     user_id: int
     restaurant_id: int
-    items: List[str] 
+    items: List[str]
+    class Config: 
+        from_attributes = True
 
 class OrderStatusUpdate(BaseModel):
-    status: str 
+    status: str
+    class Config:
+        from_attributes = True
+
+class OrderRatingUpdate(BaseModel):
+    restaurant_rating: int
+    agent_rating: int
+    class Config: 
+        from_attributes = True
+
+class OrderResponse(BaseModel):
+    id: int
+    restaurant_id: int 
+    user_id: int
+    status: str
+    items: List[str]
+    assigned_agent_id: Optional[int] = None
+    restaurant_rating: Optional[int] = None
+    agent_rating: Optional[int] = None
+
+    class Config:
+        from_attributes = True 
 
 # --- API ENDPOINTS ---
 
-@app.get("/restaurants/available")
+@app.get("/restaurants/available", response_model=List[RestaurantIn]) 
 async def list_online():
     return await Restaurant.filter(online=True).all()
 
-@app.post("/restaurants")
+@app.post("/restaurants", response_model=RestaurantIn, status_code=status.HTTP_201_CREATED) 
 async def add_restaurant(r_in: RestaurantIn):
     return await Restaurant.create(**r_in.model_dump())
 
-@app.put("/restaurants/{restaurant_id}")
+@app.put("/restaurants/{restaurant_id}", response_model=RestaurantIn)
 async def update_restaurant(restaurant_id: int, r_update: RestaurantUpdate):
     restaurant = await Restaurant.get_or_none(id=restaurant_id)
     if not restaurant:
         raise HTTPException(status_code=404, detail="Restaurant not found.")
 
-    update_data = r_update.model_dump(exclude_unset=True) # Only update fields that are provided
+    update_data = r_update.model_dump(exclude_unset=True)
     if update_data:
         await restaurant.update_from_dict(update_data).save()
     return restaurant
 
-@app.post("/restaurants/{restaurant_id}/menu")
+@app.post("/restaurants/{restaurant_id}/menu", response_model=MenuItemIn, status_code=status.HTTP_201_CREATED) 
 async def add_menu_item(restaurant_id: int, item_in: MenuItemIn):
     restaurant = await Restaurant.get_or_none(id=restaurant_id)
     if not restaurant:
@@ -93,7 +127,7 @@ async def add_menu_item(restaurant_id: int, item_in: MenuItemIn):
     new_item = await MenuItem.create(restaurant=restaurant, **item_in.model_dump())
     return new_item
 
-@app.put("/restaurants/{restaurant_id}/menu/{item_id}")
+@app.put("/restaurants/{restaurant_id}/menu/{item_id}", response_model=MenuItemIn) 
 async def update_menu_item(restaurant_id: int, item_id: int, item_update: MenuItemUpdate):
     item = await MenuItem.get_or_none(id=item_id, restaurant_id=restaurant_id)
     if not item:
@@ -104,7 +138,7 @@ async def update_menu_item(restaurant_id: int, item_id: int, item_update: MenuIt
         await item.update_from_dict(update_data).save()
     return item
 
-@app.get("/restaurants/{restaurant_id}/menu")
+@app.get("/restaurants/{restaurant_id}/menu", response_model=List[MenuItemIn])
 async def get_menu(restaurant_id: int):
     restaurant = await Restaurant.get_or_none(id=restaurant_id)
     if not restaurant:
@@ -112,7 +146,7 @@ async def get_menu(restaurant_id: int):
     return await MenuItem.filter(restaurant=restaurant).all()
 
 
-@app.post("/orders")
+@app.post("/orders", response_model=OrderResponse, status_code=status.HTTP_201_CREATED)
 async def create_order(order: OrderIn):
     restaurant_obj = await Restaurant.get_or_none(id=order.restaurant_id, online=True)
     if not restaurant_obj:
@@ -124,16 +158,15 @@ async def create_order(order: OrderIn):
         status="pending_acceptance",
         items=order.items
     )
-    return db_order
+    return OrderResponse.from_orm(db_order) 
 
-
-@app.put("/orders/{order_id}/status")
+@app.put("/orders/{order_id}/status", response_model=OrderResponse) 
 async def update_order_status(order_id: int, status_update: OrderStatusUpdate):
     order = await Order.get_or_none(id=order_id)
     if not order:
         raise HTTPException(status_code=404, detail="Order not found.")
 
-    new_status = status_update.status.lower() 
+    new_status = status_update.status.lower()
 
     if new_status == "accepted":
         if order.status != "pending_acceptance":
@@ -148,11 +181,11 @@ async def update_order_status(order_id: int, status_update: OrderStatusUpdate):
             assignment_result = resp.json()
             assigned_agent_id = assignment_result.get("agent_id")
 
-            order.status = "assigned_to_agent" 
+            order.status = "assigned_to_agent"
             order.assigned_agent_id = assigned_agent_id
             await order.save()
 
-            return {"msg": f"Order {order_id} accepted and assigned to agent {assigned_agent_id}", "order": order, "delivery_assignment": assignment_result}
+            return OrderResponse.from_orm(order) 
         except httpx.ConnectError:
             order.status = "acceptance_failed_no_agent"
             await order.save()
@@ -168,7 +201,7 @@ async def update_order_status(order_id: int, status_update: OrderStatusUpdate):
                  raise HTTPException(status_code=409, detail="No available delivery agents to assign. Order accepted but stuck.")
             raise HTTPException(status_code=exc.response.status_code, detail=f"Delivery service error during assignment: {exc.response.text}")
         except Exception as e:
-            order.status = "acceptance_failed_unexpected" 
+            order.status = "acceptance_failed_unexpected"
             await order.save()
             raise HTTPException(status_code=500, detail=f"Unexpected error during delivery assignment: {str(e)}")
 
@@ -177,18 +210,18 @@ async def update_order_status(order_id: int, status_update: OrderStatusUpdate):
             raise HTTPException(status_code=400, detail=f"Order cannot be rejected from status: {order.status}")
         order.status = "rejected"
         await order.save()
-        return {"msg": f"Order {order_id} rejected.", "order": order}
+        return OrderResponse.from_orm(order) 
 
     elif new_status in ["preparing", "ready_for_pickup", "delivered"]:
         order.status = new_status
         await order.save()
-        return {"msg": f"Order {order_id} status updated to {new_status}", "order": order}
+        return OrderResponse.from_orm(order)
 
     else:
         raise HTTPException(status_code=400, detail=f"Invalid or unsupported order status: {new_status}")
-    
 
-@app.get("/orders/{order_id}")
+
+@app.get("/orders/{order_id}", response_model=OrderResponse)
 async def get_order_details(order_id: int):
     """
     Retrieves details for a specific order.
@@ -197,9 +230,27 @@ async def get_order_details(order_id: int):
     order = await Order.get_or_none(id=order_id)
     if not order:
         raise HTTPException(status_code=404, detail="Order not found.")
-    return order 
+    return OrderResponse.from_orm(order) 
 
-@app.get("/restaurants/{restaurant_id}")
+@app.put("/orders/{order_id}/rate", response_model=OrderResponse) 
+async def rate_order(order_id: int, ratings: OrderRatingUpdate):
+    """
+    Updates the ratings for a specific order.
+    """
+    order = await Order.get_or_none(id=order_id)
+    if not order:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found.")
+
+    if order.status != "delivered":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Order must be delivered to be rated.")
+
+    order.restaurant_rating = ratings.restaurant_rating
+    order.agent_rating = ratings.agent_rating
+    await order.save()
+    return OrderResponse.from_orm(order) 
+
+
+@app.get("/restaurants/{restaurant_id}", response_model=RestaurantIn) 
 async def get_restaurant(restaurant_id: int):
     """
     Retrieves details for a specific restaurant by its ID.
@@ -221,15 +272,11 @@ async def health_check():
 # --- TORTISE ORM REGISTRATION ---
 register_tortoise(
     app,
-    #db_url="sqlite://restaurant.db",
     db_url="postgres://postgres:mysecretpassword@food_delivery_postgres:5432/postgres",
-    modules={"models": ["main"]},
+    modules={"models": ["main"]}, 
     generate_schemas=True,
     add_exception_handlers=True,
 )
-
-
-
 
 # --- SHUTDOWN EVENT ---
 @app.on_event("shutdown")

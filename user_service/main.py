@@ -3,16 +3,12 @@ import strawberry
 from strawberry.fastapi import GraphQLRouter
 from fastapi import FastAPI, HTTPException, status
 from pydantic import BaseModel
-from typing import List 
 import httpx
 
 app = FastAPI()
 
 restaurant_service_client = httpx.AsyncClient(base_url="http://restaurant_service:8001", timeout=10.0)
 delivery_agent_service_client = httpx.AsyncClient(base_url="http://delivery_agent_service:8002", timeout=10.0)
-#restaurant_service_client = httpx.AsyncClient(base_url="http://localhost:8001", timeout=10.0)
-#delivery_agent_service_client = httpx.AsyncClient(base_url="http://localhost:8002", timeout=10.0)
-
 
 
 @strawberry.type
@@ -31,54 +27,51 @@ class DeliveryAgent:
 class Order:
     id: int
     user_id: int
-    restaurant_id: int  
+    restaurant_id: int
     status: str
-    items: List[str] 
-    assigned_agent_id: Optional[int] = None 
+    items: List[str]
+    assigned_agent_id: Optional[int] = None
+    restaurant_rating: Optional[int] = None
+    agent_rating: Optional[int] = None   
 
     @strawberry.field
-    async def restaurant(self, info) -> Optional[Restaurant]:
-        try:
-            resp = await restaurant_service_client.get(f"/restaurants/{self.id}") 
-            resp.raise_for_status()
-            return Restaurant(**resp.json())
-        except httpx.HTTPStatusError as exc:
-            if exc.response.status_code == 404:
-                return None
-            raise
-        except Exception as e:
-            print(f"Error fetching restaurant for order {self.id}: {e}")
-            raise
+    async def restaurant(self) -> Optional[Restaurant]:
+        if self.restaurant_id: 
+            try:
+                resp = await restaurant_service_client.get(f"/restaurants/{self.restaurant_id}") 
+                resp.raise_for_status()
+                return Restaurant(**resp.json())
+            except httpx.HTTPStatusError as exc:
+                if exc.response.status_code == 404:
+                    return None
+                raise
+            except Exception as e:
+                print(f"Error fetching restaurant for order {self.id}: {e}")
+                raise
+        return None
 
     @strawberry.field
-    async def assigned_agent(self, info) -> Optional[DeliveryAgent]:
-        try:
-            order_from_restaurant_service_resp = await restaurant_service_client.get(f"/orders/{self.id}")
-            order_from_restaurant_service_resp.raise_for_status()
-            order_data = order_from_restaurant_service_resp.json()
-            
-            assigned_agent_id = order_data.get("assigned_agent_id")
-
-            if assigned_agent_id:
-                resp = await delivery_agent_service_client.get(f"/agents/{assigned_agent_id}")
+    async def assigned_agent(self) -> Optional[DeliveryAgent]:
+        if self.assigned_agent_id:
+            try:
+                resp = await delivery_agent_service_client.get(f"/agents/{self.assigned_agent_id}")
                 resp.raise_for_status()
                 return DeliveryAgent(**resp.json())
-            return None
-        except httpx.HTTPStatusError as exc:
-            if exc.response.status_code == 404:
-                return None
-            raise
-        except Exception as e:
-            print(f"Error fetching agent for order {self.id}: {e}")
-            raise
+            except httpx.HTTPStatusError as exc:
+                if exc.response.status_code == 404:
+                    return None
+                raise
+            except Exception as e:
+                print(f"Error fetching agent for order {self.id}: {e}")
+                raise
+        return None
+
 
 @strawberry.input
 class OrderInput:
     user_id: int
     restaurant_id: int
     items: List[str]
-
-
 
 
 @strawberry.type
@@ -108,35 +101,35 @@ class Query:
             return Order(**resp.json())
         except httpx.HTTPStatusError as exc:
             if exc.response.status_code == 404:
-                return None # Order not found
+                return None
             raise HTTPException(status_code=exc.response.status_code, detail=f"Error from restaurant service: {exc.response.text}")
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
 
 
-
-class RatingRequest(BaseModel):
-    order_id: int
-    restaurant_rating: int
-    agent_rating: int
-
 @strawberry.type
 class Mutation:
     @strawberry.mutation
-    async def rate_order(self, order_id: int, restaurant_rating: int, agent_rating: int) -> str:
+    async def rate_order(self, order_id: int, restaurant_rating: int, agent_rating: int) -> Order:
         """Submits a rating for an order and its agent/restaurant."""
-        print(f"Received rating for order {order_id}: Restaurant={restaurant_rating}, Agent={agent_rating}")
-        return f"Rating received for order {order_id}"
+        try:
+            resp = await restaurant_service_client.put(
+                f"/orders/{order_id}/rate",
+                json={"restaurant_rating": restaurant_rating, "agent_rating": agent_rating}
+            )
+            resp.raise_for_status()
+            return Order(**resp.json())
+        except httpx.HTTPStatusError as exc:
+            raise HTTPException(status_code=exc.response.status_code, detail=f"Error rating order: {exc.response.text}")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"An unexpected error occurred during rating: {str(e)}")
+
 
     @strawberry.mutation
-    async def place_order(self, order_data: OrderInput) -> Order: 
+    async def place_order(self, order_data: OrderInput) -> Order:
         """Places a new order through the restaurant service."""
         try:
-            resp = await restaurant_service_client.post("/orders", json={
-                "user_id": order_data.user_id,
-                "restaurant_id": order_data.restaurant_id,
-                "items": order_data.items
-            })
+            resp = await restaurant_service_client.post("/orders", json=order_data.model_dump())
             resp.raise_for_status()
             return Order(**resp.json())
         except httpx.ConnectError:
@@ -159,11 +152,8 @@ async def health_check():
 
 schema = strawberry.Schema(query=Query, mutation=Mutation)
 
-
 graphql_app = GraphQLRouter(schema)
-
 app.include_router(graphql_app, prefix="/graphql")
-
 
 
 # --- Shutdown Event for httpx clients ---

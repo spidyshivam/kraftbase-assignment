@@ -178,9 +178,15 @@ curl -X POST http://localhost:8002/complete-delivery \
 ### 5. Rate Order
 
 ```graphql
-mutation SubmitOrderRating {
-  rateOrder(orderId: 1, restaurantRating: 5, agentRating: 4)
+mutation RateMyOrder {
+  rateOrder(orderId: [YOUR_ORDER_ID_HERE], restaurantRating: 5, agentRating: 4) {
+    id
+    status
+    restaurantRating
+    agentRating
+  }
 }
+
 ```
 
 ---
